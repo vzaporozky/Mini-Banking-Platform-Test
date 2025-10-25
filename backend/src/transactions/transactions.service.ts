@@ -1,184 +1,162 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, DataSource } from "typeorm";
-import { Account } from "../common/entities/account.entity";
-import { Transaction } from "../common/entities/transaction.entity";
-import { Ledger } from "../common/entities/ledger.entity";
-import { v4 as uuid } from "uuid";
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TransactionsService {
-  constructor(
-    @InjectRepository(Account) private accountRepository: Repository<Account>,
-    @InjectRepository(Transaction)
-    private transactionRepository: Repository<Transaction>,
-    @InjectRepository(Ledger) private ledgerRepository: Repository<Ledger>,
-    private dataSource: DataSource
-  ) {}
+	constructor(private prisma: PrismaService) {}
+	async transfer(
+		fromAccountId: string,
+		toAccountId: string,
+		amount: number,
+		currency: string
+	) {
+		if (amount <= 0) throw new BadRequestException('Amount must be positive');
 
-  async transfer(
-    fromAccountId: string,
-    toAccountId: string,
-    amount: number,
-    currency: string
-  ) {
-    if (amount <= 0) throw new BadRequestException("Amount must be positive");
+		return this.prisma.$transaction(
+			async (prisma: Prisma.TransactionClient) => {
+				const fromAccount = await prisma.account.findFirst({
+					where: { id: fromAccountId, currency },
+				});
+				const toAccount = await prisma.account.findFirst({
+					where: { id: toAccountId, currency },
+				});
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+				if (!fromAccount || !toAccount)
+					throw new BadRequestException('Invalid account or currency');
+				if (fromAccount.balance < amount)
+					throw new BadRequestException('Insufficient funds');
 
-    try {
-      const fromAccount = await queryRunner.manager.findOne(Account, {
-        where: { id: fromAccountId, currency },
-      });
-      const toAccount = await queryRunner.manager.findOne(Account, {
-        where: { id: toAccountId, currency },
-      });
+				// Update balances using atomic operations
+				await prisma.account.update({
+					where: { id: fromAccountId },
+					data: { balance: { decrement: amount } },
+				});
 
-      if (!fromAccount || !toAccount)
-        throw new BadRequestException("Invalid account or currency");
-      if (fromAccount.balance < amount)
-        throw new BadRequestException("Insufficient funds");
+				await prisma.account.update({
+					where: { id: toAccountId },
+					data: { balance: { increment: amount } },
+				});
 
-      // Update balances
-      await queryRunner.manager.update(Account, fromAccountId, {
-        balance: () => `balance - ${amount}`,
-      });
-      await queryRunner.manager.update(Account, toAccountId, {
-        balance: () => `balance + ${amount}`,
-      });
+				// Create transaction and ledger entries
+				const transaction = await prisma.transaction.create({
+					data: {
+						fromAccountId,
+						toAccountId,
+						amount,
+						currency,
+						type: 'TRANSFER',
+						ledgerEntries: {
+							create: [
+								{
+									accountId: fromAccountId,
+									amount: -amount,
+									type: 'DEBIT',
+								},
+								{
+									accountId: toAccountId,
+									amount,
+									type: 'CREDIT',
+								},
+							],
+						},
+					},
+				});
+				return transaction;
+			}
+		);
+	}
 
-      // Create transaction
-      const transaction = await queryRunner.manager.save(Transaction, {
-        id: uuid(),
-        fromAccountId,
-        toAccountId,
-        amount,
-        currency,
-        type: "TRANSFER",
-      });
+	async exchange(
+		userId: string,
+		fromCurrency: string,
+		toCurrency: string,
+		amount: number
+	) {
+		if (amount <= 0) throw new BadRequestException('Amount must be positive');
+		const exchangeRate = fromCurrency === 'USD' ? 0.92 : 1 / 0.92;
+		const convertedAmount = Number((amount * exchangeRate).toFixed(2));
 
-      // Create ledger entries
-      await queryRunner.manager.save(Ledger, [
-        {
-          id: uuid(),
-          accountId: fromAccountId,
-          transactionId: transaction.id,
-          amount: -amount,
-          type: "DEBIT",
-        },
-        {
-          id: uuid(),
-          accountId: toAccountId,
-          transactionId: transaction.id,
-          amount,
-          type: "CREDIT",
-        },
-      ]);
+		return this.prisma.$transaction(
+			async (prisma: Prisma.TransactionClient) => {
+				const fromAccount = await prisma.account.findFirst({
+					where: { userId, currency: fromCurrency },
+				});
+				const toAccount = await prisma.account.findFirst({
+					where: { userId, currency: toCurrency },
+				});
 
-      await queryRunner.commitTransaction();
-      return transaction;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
+				if (!fromAccount || !toAccount)
+					throw new BadRequestException('Invalid account or currency');
+				if (fromAccount.balance < amount)
+					throw new BadRequestException('Insufficient funds');
 
-  async exchange(
-    userId: string,
-    fromCurrency: string,
-    toCurrency: string,
-    amount: number
-  ) {
-    if (amount <= 0) throw new BadRequestException("Amount must be positive");
-    const exchangeRate = fromCurrency === "USD" ? 0.92 : 1 / 0.92;
-    const convertedAmount = Number((amount * exchangeRate).toFixed(2));
+				// Update balances using atomic operations
+				await prisma.account.update({
+					where: { id: fromAccount.id },
+					data: { balance: { decrement: amount } },
+				});
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+				await prisma.account.update({
+					where: { id: toAccount.id },
+					data: { balance: { increment: convertedAmount } },
+				});
 
-    try {
-      const fromAccount = await queryRunner.manager.findOne(Account, {
-        where: { userId, currency: fromCurrency },
-      });
-      const toAccount = await queryRunner.manager.findOne(Account, {
-        where: { userId, currency: toCurrency },
-      });
+				// Create transaction and ledger entries
+				const transaction = await prisma.transaction.create({
+					data: {
+						fromAccountId: fromAccount.id,
+						toAccountId: toAccount.id,
+						amount,
+						currency: fromCurrency,
+						type: 'EXCHANGE',
+						ledgerEntries: {
+							create: [
+								{
+									accountId: fromAccount.id,
+									amount: -amount,
+									type: 'DEBIT',
+								},
+								{
+									accountId: toAccount.id,
+									amount: convertedAmount,
+									type: 'CREDIT',
+								},
+							],
+						},
+					},
+				});
 
-      if (!fromAccount || !toAccount)
-        throw new BadRequestException("Invalid account or currency");
-      if (fromAccount.balance < amount)
-        throw new BadRequestException("Insufficient funds");
+				return transaction;
+			}
+		);
+	}
 
-      // Update balances
-      await queryRunner.manager.update(Account, fromAccount.id, {
-        balance: () => `balance - ${amount}`,
-      });
-      await queryRunner.manager.update(Account, toAccount.id, {
-        balance: () => `balance + ${convertedAmount}`,
-      });
+	async getTransactions(
+		userId: string,
+		type?: string,
+		page: number = 1,
+		limit: number = 10
+	) {
+		const skip = (page - 1) * limit;
 
-      // Create transaction
-      const transaction = await queryRunner.manager.save(Transaction, {
-        id: uuid(),
-        fromAccountId: fromAccount.id,
-        toAccountId: toAccount.id,
-        amount,
-        currency: fromCurrency,
-        type: "EXCHANGE",
-      });
+		const where: any = {
+			OR: [{ fromAccount: { userId } }, { toAccount: { userId } }],
+		};
 
-      // Create ledger entries
-      await queryRunner.manager.save(Ledger, [
-        {
-          id: uuid(),
-          accountId: fromAccount.id,
-          transactionId: transaction.id,
-          amount: -amount,
-          type: "DEBIT",
-        },
-        {
-          id: uuid(),
-          accountId: toAccount.id,
-          transactionId: transaction.id,
-          amount: convertedAmount,
-          type: "CREDIT",
-        },
-      ]);
+		if (type) {
+			where.type = type;
+		}
 
-      await queryRunner.commitTransaction();
-      return transaction;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async getTransactions(
-    userId: string,
-    type?: string,
-    page: number = 1,
-    limit: number = 10
-  ) {
-    const query = this.transactionRepository
-      .createQueryBuilder("transaction")
-      .where(
-        "transaction.fromAccount.userId = :userId OR transaction.toAccount.userId = :userId",
-        { userId }
-      );
-
-    if (type) query.andWhere("transaction.type = :type", { type });
-    query
-      .skip((page - 1) * limit)
-      .take(limit)
-      .orderBy("transaction.created_at", "DESC");
-
-    return query.getMany();
-  }
+		return this.prisma.transaction.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: { created_at: 'desc' },
+			include: {
+				fromAccount: true,
+				toAccount: true,
+			},
+		});
+	}
 }

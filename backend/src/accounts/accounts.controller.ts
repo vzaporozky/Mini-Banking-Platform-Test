@@ -17,4 +17,10 @@ export class AccountsController {
 	async getBalance(@Param('id') id: string) {
 		return this.accountsService.getBalance(id);
 	}
+
+	@UseGuards(JwtAuthGuard)
+	@Get('by-email/:email')
+	async getAccountsByEmail(@Param('email') email: string) {
+		return this.accountsService.findByUserEmail(email);
+	}
 }

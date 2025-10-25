@@ -1,27 +1,66 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User } from "../common/entities/user.entity";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 @Injectable()
 export class AuthService {
-  constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    private jwtService: JwtService
-  ) {}
+	constructor(
+		private prisma: PrismaService,
+		private jwtService: JwtService
+	) {}
 
-  async login(username: string, password: string) {
-    const user = await this.userRepository.findOne({ where: { username } });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-    const payload = { sub: user.id, username: user.username };
-    return { access_token: this.jwtService.sign(payload) };
-  }
+	async login(email: string, password: string) {
+		const user = await this.prisma.user.findUnique({ where: { email } });
+		if (!user || !(await bcrypt.compare(password, user.password))) {
+			throw new UnauthorizedException('Invalid credentials');
+		}
+		const payload = { sub: user.id, username: user.username };
+		return {
+			user: {
+				id: user.id,
+				email: user.email,
+				username: user.username,
+				fullname: user.fullname,
+			},
+			token: this.jwtService.sign(payload),
+		};
+	}
 
-  async getMe(userId: string) {
-    return this.userRepository.findOne({ where: { id: userId } });
-  }
+	async register(email: string, password: string, fullname: string) {
+		// Проверяем, существует ли пользователь с таким email
+		const existingUser = await this.prisma.user.findUnique({
+			where: { email },
+		});
+		if (existingUser) {
+			throw new UnauthorizedException('User with this email already exists');
+		}
+
+		// Хешируем пароль
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		// Создаем пользователя
+		const user = await this.prisma.user.create({
+			data: {
+				email,
+				password: hashedPassword,
+				fullname,
+				username: email, // Используем email как username
+			},
+		});
+
+		const payload = { sub: user.id, username: user.username };
+		return {
+			user: {
+				id: user.id,
+				email: user.email,
+				username: user.username,
+				fullname: user.fullname,
+			},
+			token: this.jwtService.sign(payload),
+		};
+	}
+
+	async getMe(userId: string) {
+		return this.prisma.user.findUnique({ where: { id: userId } });
+	}
 }
