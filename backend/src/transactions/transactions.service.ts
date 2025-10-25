@@ -27,7 +27,6 @@ export class TransactionsService {
 				if (fromAccount.balance < amount)
 					throw new BadRequestException('Insufficient funds');
 
-				// Update balances using atomic operations
 				await prisma.account.update({
 					where: { id: fromAccountId },
 					data: { balance: { decrement: amount } },
@@ -38,7 +37,6 @@ export class TransactionsService {
 					data: { balance: { increment: amount } },
 				});
 
-				// Create transaction and ledger entries
 				const transaction = await prisma.transaction.create({
 					data: {
 						fromAccountId,
@@ -91,7 +89,6 @@ export class TransactionsService {
 				if (fromAccount.balance < amount)
 					throw new BadRequestException('Insufficient funds');
 
-				// Update balances using atomic operations
 				await prisma.account.update({
 					where: { id: fromAccount.id },
 					data: { balance: { decrement: amount } },
@@ -102,7 +99,6 @@ export class TransactionsService {
 					data: { balance: { increment: convertedAmount } },
 				});
 
-				// Create transaction and ledger entries
 				const transaction = await prisma.transaction.create({
 					data: {
 						fromAccountId: fromAccount.id,

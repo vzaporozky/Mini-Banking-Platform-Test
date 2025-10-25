@@ -27,7 +27,6 @@ export class AuthService {
 	}
 
 	async register(email: string, password: string, fullname: string) {
-		// Проверяем, существует ли пользователь с таким email
 		const existingUser = await this.prisma.user.findUnique({
 			where: { email },
 		});
@@ -35,16 +34,14 @@ export class AuthService {
 			throw new UnauthorizedException('User with this email already exists');
 		}
 
-		// Хешируем пароль
 		const hashedPassword = await bcrypt.hash(password, 10);
 
-		// Создаем пользователя
 		const user = await this.prisma.user.create({
 			data: {
 				email,
 				password: hashedPassword,
 				fullname,
-				username: email, // Используем email как username
+				username: email,
 			},
 		});
 
