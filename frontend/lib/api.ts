@@ -71,20 +71,25 @@ export const authApi = {
   ): Promise<{ user: User; token: string }> {
     return apiRequest("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, full_name: fullName }),
+      body: JSON.stringify({ email, password, fullname: fullName }),
     });
   },
 
   async getProfile(): Promise<User> {
-    return apiRequest("/auth/profile");
+    return apiRequest("/auth/me");
   },
 };
 
 // Wallets API
 export const walletsApi = {
   async getWallets(): Promise<Wallet[]> {
-    const response = await apiRequest<{ data: Wallet[] }>("/accounts");
-    return response.data;
+    return apiRequest<Wallet[]>("/accounts");
+  },
+
+  async getWalletsByEmail(email: string): Promise<Wallet[]> {
+    return apiRequest<Wallet[]>(
+      `/accounts/by-email/${encodeURIComponent(email)}`
+    );
   },
 };
 
@@ -111,14 +116,16 @@ export const transactionsApi = {
   },
 
   async createTransfer(
-    recipientEmail: string,
+    fromAccountId: string,
+    toAccountId: string,
     amount: number,
     currency: string
   ): Promise<Transaction> {
     return apiRequest("/transactions/transfer", {
       method: "POST",
       body: JSON.stringify({
-        recipient_email: recipientEmail,
+        fromAccountId,
+        toAccountId,
         amount,
         currency,
       }),
@@ -134,8 +141,8 @@ export const transactionsApi = {
       method: "POST",
       body: JSON.stringify({
         amount,
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
+        fromCurrency,
+        toCurrency,
       }),
     });
   },
