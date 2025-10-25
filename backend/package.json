@@ -1,17 +1,24 @@
 {
 	"name": "mini-bank-platform",
 	"version": "1.0.0",
-	"description": "",
+	"description": "Mini Banking Platform Backend",
 	"type": "commonjs",
-	"main": "dist/src/index.js",
-	"types": "dist/src/index.d.ts",
+	"main": "dist/src/main.js",
+	"types": "dist/src/main.d.ts",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"compile": "npx tsgo",
-		"start": "ts-node-dev --poll --respawn --transpile-only src/index.ts"
+		"build": "tsc",
+		"start": "node dist/src/main.js",
+		"start:dev": "ts-node-dev --poll --respawn --transpile-only src/main.ts",
+		"start:prod": "node dist/src/main.js",
+		"migration:run": "typeorm migration:run -d src/data-source.ts",
+		"migration:revert": "typeorm migration:revert -d src/data-source.ts",
+		"seed": "ts-node src/seeders/seed-users.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.7.2",
+		"@types/passport-jwt": "^3.0.9",
+		"@types/bcrypt": "^5.0.0",
+		"@types/uuid": "^9.0.0",
 		"ts-node": "^10.9.2",
 		"ts-node-dev": "^2.0.0",
 		"prettier": "3.6.2",
@@ -21,12 +28,19 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
+		"@nestjs/common": "^10.0.0",
 		"@nestjs/core": "^10.0.0",
+		"@nestjs/platform-express": "^10.0.0",
 		"@nestjs/typeorm": "^10.0.0",
-		"typeorm": "^0.3.20",
 		"@nestjs/jwt": "^10.0.0",
+		"@nestjs/passport": "^10.0.0",
+		"@nestjs/config": "^3.0.0",
+		"typeorm": "^0.3.20",
+		"passport": "^0.6.0",
+		"passport-jwt": "^4.0.1",
 		"bcrypt": "^5.0.0",
 		"dotenv": "^17.2.3",
-		"pg": "^8.0.0"
+		"pg": "^8.0.0",
+		"uuid": "^9.0.0"
 	}
 }
