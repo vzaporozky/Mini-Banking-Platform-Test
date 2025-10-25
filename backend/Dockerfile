@@ -34,6 +34,6 @@ COPY --chown=node:node --from=builder /app/dist ./dist
 COPY --chown=node:node --from=builder /app/package*.json ./
 COPY --chown=node:node --from=deps /app/node_modules ./node_modules 
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "./dist/src/main.js"]

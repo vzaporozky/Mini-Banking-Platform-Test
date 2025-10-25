@@ -15,7 +15,7 @@ services:
       - DB_NAME=mini_bank
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=3001
     depends_on:
       - postgres-db
     restart: always
