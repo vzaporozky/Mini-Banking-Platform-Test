@@ -13,24 +13,24 @@ import { Ledger } from './ledger.entity';
 @Entity('accounts')
 export class Account {
 	@PrimaryGeneratedColumn('uuid')
-	id: string;
+	id!: string;
 
 	@Column('uuid')
-	userId: string;
+	userId!: string;
 
 	@Column()
-	currency: string;
+	currency!: string;
 
 	@Column('decimal', { precision: 15, scale: 2, default: 0.0 })
-	balance: number;
+	balance!: number;
 
 	@CreateDateColumn()
-	created_at: Date;
+	created_at!: Date;
 
 	@ManyToOne(() => User, user => user.accounts)
 	@JoinColumn({ name: 'userId' })
-	user: User;
+	user!: User;
 
 	@OneToMany(() => Ledger, ledger => ledger.account)
-	ledgerEntries: Ledger[];
+	ledgerEntries: Ledger[] = [];
 }

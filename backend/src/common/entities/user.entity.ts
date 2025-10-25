@@ -10,17 +10,17 @@ import { Account } from './account.entity';
 @Entity('users')
 export class User {
 	@PrimaryGeneratedColumn('uuid')
-	id: string;
+	id!: string;
 
 	@Column({ unique: true })
-	username: string;
+	username!: string;
 
 	@Column()
-	password: string;
+	password!: string;
 
 	@CreateDateColumn()
-	created_at: Date;
+	created_at!: Date;
 
 	@OneToMany(() => Account, account => account.user)
-	accounts: Account[];
+	accounts: Account[] = [];
 }

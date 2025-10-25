@@ -13,34 +13,34 @@ import { Ledger } from './ledger.entity';
 @Entity('transactions')
 export class Transaction {
 	@PrimaryGeneratedColumn('uuid')
-	id: string;
+	id!: string;
 
 	@Column('uuid', { nullable: true })
-	fromAccountId: string;
+	fromAccountId!: string;
 
 	@Column('uuid', { nullable: true })
-	toAccountId: string;
+	toAccountId!: string;
 
 	@Column('decimal', { precision: 15, scale: 2 })
-	amount: number;
+	amount!: number;
 
 	@Column()
-	currency: string;
+	currency!: string;
 
 	@Column()
-	type: string; // 'TRANSFER' or 'EXCHANGE'
+	type!: string; // 'TRANSFER' or 'EXCHANGE'
 
 	@CreateDateColumn()
-	created_at: Date;
+	created_at!: Date;
 
 	@ManyToOne(() => Account)
 	@JoinColumn({ name: 'fromAccountId' })
-	fromAccount: Account;
+	fromAccount!: Account;
 
 	@ManyToOne(() => Account)
 	@JoinColumn({ name: 'toAccountId' })
-	toAccount: Account;
+	toAccount!: Account;
 
 	@OneToMany(() => Ledger, ledger => ledger.transaction)
-	ledgerEntries: Ledger[];
+	ledgerEntries!: Ledger[];
 }
