@@ -1,7 +1,7 @@
-version: "3.8"
+# version: "3.8"
 services:
   backend:
-    container_name: mini-bank-backend
+    container_name: bank-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -13,6 +13,7 @@ services:
       - DB_USERNAME=postgres
       - DB_PASSWORD=password
       - DB_NAME=mini_bank
+      - DATABASE_URL=postgresql://postgres:password@postgres-db:5432/mini_bank
       - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
       - NODE_ENV=production
       - PORT=3001
@@ -23,13 +24,14 @@ services:
       - mini-bank-network
 
   postgres-db:
-    container_name: mini-bank-postgres-db
-    image: postgres:latest
+    container_name: postgres-db
+    image: postgres:15
     restart: always
-    env_file:
-      - ./backend/.env
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mini_bank
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     ports:
       - "5432:5432"
     networks:
