@@ -1,0 +1,24 @@
+node_modules
+
+typechain-types
+cache
+.env
+logs
+build
+dist
+temp
+service-account-key.json
+/generated/prisma
+
+*audit.json
+secret-key
+
+# eslint
+.eslintcache
+
+# misc
+.DS_Store
+
+# IDE
+.vscode
+.idea
