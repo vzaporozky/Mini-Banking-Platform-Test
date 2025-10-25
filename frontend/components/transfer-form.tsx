@@ -22,7 +22,7 @@ import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/auth-context";
 import { Wallet } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { transactionsApi } from "@/lib/api";
+import { transactionsApi, walletsApi } from "@/lib/api";
 
 type TransferFormProps = {
   wallets: Wallet[];
@@ -83,9 +83,27 @@ export function TransferForm({ wallets, onSuccess }: TransferFormProps) {
         return;
       }
 
+      // Получаем аккаунты получателя по email
+      const recipientWallets = await walletsApi.getWalletsByEmail(
+        recipientEmail
+      );
+      const recipientWallet = recipientWallets.find(
+        (w) => w.currency === currency
+      );
+
+      if (!recipientWallet) {
+        toast({
+          type: "error",
+          title: "Error",
+          description: "Recipient doesn't have a wallet in this currency",
+        });
+        return;
+      }
+
       // Выполняем перевод через API
       await transactionsApi.createTransfer(
-        recipientEmail,
+        senderWallet.id,
+        recipientWallet.id,
         transferAmount,
         currency
       );

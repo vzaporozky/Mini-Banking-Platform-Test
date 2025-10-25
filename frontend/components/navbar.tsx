@@ -53,7 +53,7 @@ export function Navbar() {
               Transactions
             </Link>
             <div className="flex items-center gap-3 border-l pl-6">
-              <span className="text-sm text-gray-600">{user.full_name}</span>
+              <span className="text-sm text-gray-600">{user.fullname}</span>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
               </Button>

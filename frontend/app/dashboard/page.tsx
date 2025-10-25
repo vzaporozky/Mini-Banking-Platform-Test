@@ -27,7 +27,7 @@ export default function DashboardPage() {
     try {
       const [walletsData, transactionsData] = await Promise.all([
         walletsApi.getWallets(),
-        transactionsApi.getTransactions(1, 5)
+        transactionsApi.getTransactions(1, 5),
       ]);
 
       setWallets(walletsData);
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Welcome back, {user.full_name}</h1>
+          <h1 className="text-3xl font-bold">Welcome back, {user.fullname}</h1>
           <p className="text-gray-600">Manage your wallets and transactions</p>
         </div>
 
