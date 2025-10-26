@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Wallet } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { transactionsApi } from "@/lib/api";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
 type ExchangeFormProps = {
   wallets: Wallet[];
@@ -36,6 +37,8 @@ export function ExchangeForm({ wallets, onSuccess }: ExchangeFormProps) {
   const [amount, setAmount] = useState("");
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -46,143 +49,195 @@ export function ExchangeForm({ wallets, onSuccess }: ExchangeFormProps) {
     if (amount) {
       const numAmount = parseFloat(amount);
       if (!isNaN(numAmount)) {
-        setConvertedAmount(numAmount * rate);
+        setConvertedAmount(Number((numAmount * rate).toFixed(2)));
       }
     } else {
       setConvertedAmount(0);
     }
   }, [amount, rate]);
 
+  const validateForm = () => {
+    const errors: string[] = [];
+
+    if (!amount || parseFloat(amount) <= 0) {
+      errors.push("Amount must be greater than 0");
+    }
+
+    const sourceWallet = wallets.find((w) => w.currency === sourceCurrency);
+    if (sourceWallet && amount) {
+      const exchangeAmount = parseFloat(amount);
+      if (sourceWallet.balance < exchangeAmount) {
+        errors.push("Insufficient balance");
+      }
+    }
+
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    if (validateForm()) {
+      setShowConfirmation(true);
+    }
+  };
+
+  const handleConfirmExchange = async () => {
+    if (!user) return;
+
     setLoading(true);
+    setShowConfirmation(false);
 
     try {
       const exchangeAmount = parseFloat(amount);
-
-      if (exchangeAmount <= 0) {
-        toast({
-          type: "error",
-          title: "Error",
-          description: "Amount must be greater than 0",
-        });
-        return;
-      }
-
       const sourceWallet = wallets.find((w) => w.currency === sourceCurrency);
       const targetWallet = wallets.find((w) => w.currency === targetCurrency);
 
       if (!sourceWallet || !targetWallet) {
-        toast({
-          type: "error",
-          title: "Error",
-          description: "Wallets not found",
-        });
-        return;
+        throw new Error("Wallets not found");
       }
 
-      if (sourceWallet.balance < exchangeAmount) {
-        toast({
-          type: "error",
-          title: "Error",
-          description: "Insufficient balance",
-        });
-        return;
-      }
-
-      const converted = exchangeAmount * rate;
-
-      // Выполняем обмен через API
+      // Execute exchange via API
       await transactionsApi.createExchange(
         exchangeAmount,
         sourceCurrency,
         targetCurrency
       );
 
-      toast({ type: "success", title: "Exchange completed successfully" });
+      toast({
+        type: "success",
+        title: "Exchange Completed",
+        description: `Successfully exchanged ${formatCurrency(
+          exchangeAmount,
+          sourceCurrency
+        )} to ${formatCurrency(convertedAmount, targetCurrency)}`,
+      });
       setAmount("");
+      setValidationErrors([]);
       onSuccess();
     } catch (error: any) {
       toast({
         type: "error",
-        title: "Error",
-        description: error.message || "Exchange failed",
+        title: "Exchange Failed",
+        description: error.message || "An error occurred during exchange",
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const sourceWallet = wallets.find((w) => w.currency === sourceCurrency);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Exchange Currency</CardTitle>
-        <CardDescription>Convert between USD and EUR</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="source-currency">From</Label>
-            <Select
-              value={sourceCurrency}
-              onValueChange={(value: string) =>
-                setSourceCurrency(value as "USD" | "EUR")
-              }
-            >
-              <SelectTrigger id="source-currency">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USD">USD</SelectItem>
-                <SelectItem value="EUR">EUR</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="exchange-amount">Amount</Label>
-            <Input
-              id="exchange-amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              required
-              disabled={loading}
-            />
-            {sourceCurrency &&
-              wallets.find((w) => w.currency === sourceCurrency) && (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Exchange Currency</CardTitle>
+          <CardDescription>Convert between USD and EUR</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="source-currency">From</Label>
+              <Select
+                value={sourceCurrency}
+                onValueChange={(value: string) => {
+                  setSourceCurrency(value as "USD" | "EUR");
+                  setValidationErrors([]);
+                }}
+              >
+                <SelectTrigger id="source-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exchange-amount">Amount</Label>
+              <Input
+                id="exchange-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setValidationErrors([]);
+                }}
+                placeholder="0.00"
+                required
+                disabled={loading}
+                className={validationErrors.length > 0 ? "border-red-500" : ""}
+              />
+              {sourceWallet && (
                 <p className="text-xs text-gray-500">
                   Available:{" "}
-                  {formatCurrency(
-                    wallets.find((w) => w.currency === sourceCurrency)!.balance,
-                    sourceCurrency
-                  )}
+                  {formatCurrency(sourceWallet.balance, sourceCurrency)}
                 </p>
               )}
-          </div>
-          <div className="rounded-lg border bg-gray-50 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Exchange Rate:</span>
-              <span className="text-sm font-medium">
-                1 {sourceCurrency} = {rate.toFixed(4)} {targetCurrency}
-              </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">You will receive:</span>
-              <span className="text-lg font-bold">
-                {formatCurrency(convertedAmount, targetCurrency)}
-              </span>
+
+            <div className="rounded-lg border bg-gray-50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Exchange Rate:</span>
+                <span className="text-sm font-medium">
+                  1 {sourceCurrency} = {rate.toFixed(4)} {targetCurrency}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">You will receive:</span>
+                <span className="text-lg font-bold">
+                  {formatCurrency(convertedAmount, targetCurrency)}
+                </span>
+              </div>
             </div>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Processing..." : "Exchange"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+
+            {validationErrors.length > 0 && (
+              <div className="p-3 border border-red-200 bg-red-50 rounded-md">
+                <ul className="text-sm text-red-600 space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || validationErrors.length > 0}
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                "Review Exchange"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <ConfirmationDialog
+        open={showConfirmation}
+        onOpenChange={setShowConfirmation}
+        title="Confirm Exchange"
+        description={`Are you sure you want to exchange ${formatCurrency(
+          parseFloat(amount),
+          sourceCurrency
+        )} for ${formatCurrency(convertedAmount, targetCurrency)}?`}
+        confirmText="Confirm Exchange"
+        cancelText="Cancel"
+        onConfirm={handleConfirmExchange}
+        loading={loading}
+      />
+    </>
   );
 }

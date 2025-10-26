@@ -23,7 +23,7 @@ model Account {
   id               String        @id @default(uuid())
   userId           String
   currency         String
-  balance          Float         @default(0.0)
+  balance          Decimal       @default(0.0)
   created_at       DateTime      @default(now())
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   ledgerEntries    Ledger[]
@@ -37,7 +37,7 @@ model Transaction {
   id            String   @id @default(uuid())
   fromAccountId String?
   toAccountId   String?
-  amount        Float
+  amount        Decimal
   currency      String
   type          String
   created_at    DateTime @default(now())
@@ -52,7 +52,7 @@ model Ledger {
   id            String      @id @default(uuid())
   accountId     String
   transactionId String
-  amount        Float
+  amount        Decimal
   type          String
   created_at    DateTime    @default(now())
   account       Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -60,3 +60,4 @@ model Ledger {
 
   @@map("ledger")
 }
+

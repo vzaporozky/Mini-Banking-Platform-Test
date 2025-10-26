@@ -1,54 +1,54 @@
 # Mini Bank Platform - Backend
 
-Бэкенд для мини-банковской платформы, реализующий double-entry ledger систему
-для финансовых транзакций.
+Backend for a mini banking platform implementing a double-entry ledger system
+for financial transactions.
 
-## Технологии
+## Technologies
 
-- **Node.js** с **NestJS** фреймворком
-- **PostgreSQL** база данных
-- **TypeORM** для работы с базой данных
-- **JWT** аутентификация
-- **Docker** для контейнеризации
+- **Node.js** with **NestJS** framework
+- **PostgreSQL** database
+- **TypeORM** for database operations
+- **JWT** authentication
+- **Docker** for containerization
 
-## Структура базы данных
+## Database Structure
 
-### Таблицы:
+### Tables:
 
-- `users` - информация о пользователях
-- `accounts` - валютные аккаунты пользователей (USD, EUR)
-- `transactions` - записи о транзакциях
-- `ledger` - double-entry ledger записи для аудита
+- `users` - user information
+- `accounts` - user currency accounts (USD, EUR)
+- `transactions` - transaction records
+- `ledger` - double-entry ledger records for auditing
 
 ### Double-Entry Ledger
 
-Каждая транзакция создает сбалансированные записи в ledger:
+Each transaction creates balanced entries in the ledger:
 
-- **DEBIT** (отрицательная сумма) - списание с аккаунта
-- **CREDIT** (положительная сумма) - зачисление на аккаунт
-- Сумма всех записей для одной транзакции всегда равна нулю
+- **DEBIT** (negative amount) - withdrawal from an account
+- **CREDIT** (positive amount) - deposit to an account
+- The sum of all entries for a single transaction always equals zero
 
 ## API Endpoints
 
-### Аутентификация
+### Authentication
 
-- `POST /auth/login` - вход в систему
-- `GET /auth/me` - получение информации о текущем пользователе
+- `POST /auth/login` - user login
+- `GET /auth/me` - retrieve current user information
 
-### Аккаунты
+### Accounts
 
-- `GET /accounts` - список аккаунтов пользователя
-- `GET /accounts/:id/balance` - баланс конкретного аккаунта
+- `GET /accounts` - list of user accounts
+- `GET /accounts/:id/balance` - balance of a specific account
 
-### Транзакции
+### Transactions
 
-- `POST /transactions/transfer` - перевод между пользователями
-- `POST /transactions/exchange` - обмен валют
-- `GET /transactions` - история транзакций с фильтрацией
+- `POST /transactions/transfer` - transfer between users
+- `POST /transactions/exchange` - currency exchange
+- `GET /transactions` - transaction history with filtering
 
-## Предустановленные пользователи
+## Pre-installed Users
 
-Система создает 3 тестовых пользователя при инициализации:
+The system creates 3 test users upon initialization:
 
 | Username | Password  | USD Balance | EUR Balance |
 | -------- | --------- | ----------- | ----------- |
@@ -56,44 +56,45 @@
 | user2    | password2 | $1000.00    | €500.00     |
 | user3    | password3 | $1000.00    | €500.00     |
 
-## Курс обмена валют
+## Currency Exchange Rates
 
 - **1 USD = 0.92 EUR**
-- **1 EUR = 1.09 USD** (обратный курс)
+- **1 EUR = 1.09 USD** (inverse rate)
 
-## Запуск приложения
+## Running the Application
 
-### Локальная разработка
+### Local Development
 
-1. **Установка зависимостей:**
+1. **Install dependencies:**
 
 ```bash
 npm install
 ```
 
-2. **Настройка базы данных:**
+2. **Set up the database:**
 
 ```bash
-# Создайте .env файл на основе .env.example
+
+# Create a .env file based on .env.example
 cp .env.example .env
 
-# Запустите PostgreSQL локально или через Docker
+# Run PostgreSQL locally or via Docker
 docker run --name postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=mini_bank -p 5432:5432 -d postgres:latest
 ```
 
-3. **Запуск миграций:**
+3. **Run migrations:**
 
 ```bash
 npm run migration:run
 ```
 
-4. **Заполнение тестовыми данными:**
+4. **Seed with test data:**
 
 ```bash
 npm run seed
 ```
 
-5. **Запуск в режиме разработки:**
+5. **Run in development mode:**
 
 ```bash
 npm run start:dev
@@ -101,39 +102,39 @@ npm run start:dev
 
 ### Docker
 
-1. **Запуск через docker-compose:**
+1. **Run with docker-compose:**
 
 ```bash
 docker-compose up --build
 ```
 
-2. **Приложение будет доступно по адресу:**
+2. **The application will be available at:**
 
 - Backend: http://localhost:3000
 - PostgreSQL: localhost:5432
 
-## Скрипты
+## Scripts
 
-- `npm run build` - сборка проекта
-- `npm run start` - запуск в продакшене
-- `npm run start:dev` - запуск в режиме разработки
-- `npm run migration:run` - выполнение миграций
-- `npm run migration:revert` - откат миграций
-- `npm run seed` - заполнение тестовыми данными
+- `npm run build` - build the project
+- `npm run start` - run in production
+- `npm run start:dev` - run in development mode
+- `npm run migration:run` - run migrations
+- `npm run migration:revert` - revert migrations
+- `npm run seed` - seed with test data
 
-## Безопасность
+## Security
 
-- Пароли хешируются с помощью bcrypt
-- JWT токены с истечением через 24 часа
-- Валидация входных данных
-- Транзакционная целостность для всех финансовых операций
+- Passwords are hashed using bcrypt
+- JWT tokens expire after 24 hours
+- Input data validation
+- Transactional integrity for all financial operations
 
-## Архитектурные решения
+## Architectural Decisions
 
-1. **Double-Entry Ledger** - обеспечивает полную аудируемость всех финансовых
-   операций
-2. **Транзакции базы данных** - гарантируют целостность данных при конкурентных
-   операциях
-3. **Разделение ответственности** - четкое разделение между контроллерами,
-   сервисами и сущностями
-4. **Валидация** - проверка всех входных данных и бизнес-правил
+1. **Double-Entry Ledger** - ensures full auditability of all financial
+   operations
+2. **Database Transactions** - guarantee data integrity during concurrent
+   operations
+3. **Separation of Concerns** - clear division between controllers, services,
+   and entities
+4. **Validation** - verification of all input data and business rules`;

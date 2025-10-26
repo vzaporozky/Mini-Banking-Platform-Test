@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class TransactionsService {
 	constructor(private prisma: PrismaService) {}
+
 	async transfer(
 		fromAccountId: string,
 		toAccountId: string,
@@ -24,7 +25,9 @@ export class TransactionsService {
 
 				if (!fromAccount || !toAccount)
 					throw new BadRequestException('Invalid account or currency');
-				if (fromAccount.balance < amount)
+
+				const fromBalance = fromAccount.balance.toNumber();
+				if (fromBalance < amount)
 					throw new BadRequestException('Insufficient funds');
 
 				await prisma.account.update({
@@ -60,7 +63,10 @@ export class TransactionsService {
 						},
 					},
 				});
-				return transaction;
+				return {
+					...transaction,
+					amount: transaction.amount.toNumber(),
+				};
 			}
 		);
 	}
@@ -86,7 +92,9 @@ export class TransactionsService {
 
 				if (!fromAccount || !toAccount)
 					throw new BadRequestException('Invalid account or currency');
-				if (fromAccount.balance < amount)
+
+				const fromBalance = fromAccount.balance.toNumber();
+				if (fromBalance < amount)
 					throw new BadRequestException('Insufficient funds');
 
 				await prisma.account.update({
@@ -123,7 +131,10 @@ export class TransactionsService {
 					},
 				});
 
-				return transaction;
+				return {
+					...transaction,
+					amount: transaction.amount.toNumber(),
+				};
 			}
 		);
 	}
@@ -144,15 +155,43 @@ export class TransactionsService {
 			where.type = type;
 		}
 
-		return this.prisma.transaction.findMany({
-			where,
-			skip,
-			take: limit,
-			orderBy: { created_at: 'desc' },
-			include: {
-				fromAccount: true,
-				toAccount: true,
-			},
-		});
+		const [transactions, total] = await Promise.all([
+			this.prisma.transaction.findMany({
+				where,
+				skip,
+				take: limit,
+				orderBy: { created_at: 'desc' },
+				include: {
+					fromAccount: true,
+					toAccount: true,
+				},
+			}),
+			this.prisma.transaction.count({ where }),
+		]);
+
+		const formattedTransactions = transactions.map(transaction => ({
+			...transaction,
+			amount: transaction.amount.toNumber(),
+			fromAccount: transaction.fromAccount
+				? {
+						...transaction.fromAccount,
+						balance: transaction.fromAccount.balance.toNumber(),
+					}
+				: null,
+			toAccount: transaction.toAccount
+				? {
+						...transaction.toAccount,
+						balance: transaction.toAccount.balance.toNumber(),
+					}
+				: null,
+		}));
+
+		return {
+			data: formattedTransactions,
+			total,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit),
+		};
 	}
 }

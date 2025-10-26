@@ -23,4 +23,10 @@ export class AccountsController {
 	async getAccountsByEmail(@Param('email') email: string) {
 		return this.accountsService.findByUserEmail(email);
 	}
+
+	@UseGuards(JwtAuthGuard)
+	@Get(':id/verify-balance')
+	async verifyBalanceConsistency(@Param('id') id: string) {
+		return this.accountsService.verifyBalanceConsistency(id);
+	}
 }
